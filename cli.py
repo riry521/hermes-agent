@@ -6066,6 +6066,10 @@ class HermesCLI:
             self._toggle_yolo()
         elif canonical == "reasoning":
             self._handle_reasoning_command(cmd_original)
+        elif canonical == "think":
+            self._handle_think_toggle_command(enable=True)
+        elif canonical == "no_think":
+            self._handle_think_toggle_command(enable=False)
         elif canonical == "fast":
             self._handle_fast_command(cmd_original)
         elif canonical == "compress":
@@ -6918,6 +6922,23 @@ class HermesCLI:
             _cprint(f"  {_ACCENT}✓ Reasoning effort set to '{arg}' (saved to config){_RST}")
         else:
             _cprint(f"  {_ACCENT}✓ Reasoning effort set to '{arg}' (session only){_RST}")
+
+    def _handle_think_toggle_command(self, *, enable: bool):
+        """Handle /think and /no_think — toggle Qwen3 thinking mode."""
+        if enable:
+            self.reasoning_config = {"enabled": True, "effort": "medium"}
+            self.agent = None
+            if save_config_value("agent.reasoning_effort", "medium"):
+                _cprint(f"  {_ACCENT}🧠 Thinking: ON (medium, saved to config){_RST}")
+            else:
+                _cprint(f"  {_ACCENT}🧠 Thinking: ON (medium, session only){_RST}")
+        else:
+            self.reasoning_config = {"enabled": False}
+            self.agent = None
+            if save_config_value("agent.reasoning_effort", "none"):
+                _cprint(f"  {_ACCENT}🧠 Thinking: OFF (saved to config){_RST}")
+            else:
+                _cprint(f"  {_ACCENT}🧠 Thinking: OFF (session only){_RST}")
 
     def _handle_fast_command(self, cmd: str):
         """Handle /fast — toggle fast mode (OpenAI Priority Processing / Anthropic Fast Mode)."""

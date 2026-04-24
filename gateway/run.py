@@ -3580,6 +3580,12 @@ class GatewayRunner:
         if canonical == "reasoning":
             return await self._handle_reasoning_command(event)
 
+        if canonical == "think":
+            return await self._handle_think_toggle_command(event, enable=True)
+
+        if canonical == "no_think":
+            return await self._handle_think_toggle_command(event, enable=False)
+
         if canonical == "fast":
             return await self._handle_fast_command(event)
 
@@ -6869,6 +6875,42 @@ class GatewayRunner:
             return f"🧠 ✓ Reasoning effort set to `{effort}` (saved to config)\n_(takes effect on next message)_"
         else:
             return f"🧠 ✓ Reasoning effort set to `{effort}` (this session only)"
+
+    async def _handle_think_toggle_command(self, event: MessageEvent, *, enable: bool) -> str:
+        """Handle /think and /no_think — toggle Qwen3 thinking mode."""
+        import yaml
+
+        config_path = _hermes_home / "config.yaml"
+
+        def _save_config_key(key_path: str, value):
+            try:
+                user_config = {}
+                if config_path.exists():
+                    with open(config_path, encoding="utf-8") as f:
+                        user_config = yaml.safe_load(f) or {}
+                keys = key_path.split(".")
+                current = user_config
+                for k in keys[:-1]:
+                    if k not in current or not isinstance(current[k], dict):
+                        current[k] = {}
+                    current = current[k]
+                current[keys[-1]] = value
+                atomic_yaml_write(config_path, user_config)
+                return True
+            except Exception as e:
+                logger.error("Failed to save config key %s: %s", key_path, e)
+                return False
+
+        if enable:
+            self._reasoning_config = {"enabled": True, "effort": "medium"}
+            saved = _save_config_key("agent.reasoning_effort", "medium")
+            suffix = " (saved to config)" if saved else " (this session only)"
+            return f"🧠 Thinking: **ON** (medium){suffix}\n_(takes effect on next message)_"
+        else:
+            self._reasoning_config = {"enabled": False}
+            saved = _save_config_key("agent.reasoning_effort", "none")
+            suffix = " (saved to config)" if saved else " (this session only)"
+            return f"🧠 Thinking: **OFF**{suffix}\n_(takes effect on next message)_"
 
     async def _handle_fast_command(self, event: MessageEvent) -> str:
         """Handle /fast — mirror the CLI Priority Processing toggle in gateway chats."""
